@@ -82,6 +82,19 @@ def calcXPs(tgt, amps, H0, Hks, numt, dt):
     return x, p
 
 
+def f(amps, H0, Hks, dt, step, U, x):
+    mat = H0  # matrix in the exponential
+    for k in range(len(Hks)):  # loop over controls and add to hamiltonian
+        mat = np.add(mat, amps[k][step] * Hks[k])
+
+    mat = -1 * 1j * dt * mat
+    U.append(expm(mat))  # do the matrix exponential
+    if step == 0:
+        x.append(U[step])
+    else:
+        x.append(np.matmul(U[step], x[step - 1]))
+        
+
 #########################################################################################
 def calcXPsParallel(tgt, amps, H0, Hks, numt, dt):
     x = []
@@ -89,7 +102,7 @@ def calcXPsParallel(tgt, amps, H0, Hks, numt, dt):
     U = []
 
     pool = mp.Pool(mp.cpu_count())
-    Jmats = [pool.apply(f2, args=(H0, Hks, amps, i, dt, x, U)) for i in range(numt)]
+    Jmats = [pool.apply(f, args=(H0, Hks, amps, i, dt, x, U)) for i in range(numt)]
     pool.close()
 
 
