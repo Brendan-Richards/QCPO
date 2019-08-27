@@ -1,3 +1,3 @@
 # QCPO
-Quantum Control Pulse Optimization, using multiple algorithms
+Quantum Control Pulse Optimization, using multiple algorithms\n
 my email: brichar2@umbc.edu
