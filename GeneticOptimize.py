@@ -1,7 +1,7 @@
 import numpy as np
 import random as rand
 
-class params:
+class Params:
     def __init__(self):
         self.num_controls = 10
         self.numt = 12
@@ -41,7 +41,7 @@ class Individual:
 
     # returns an array of amplitudes in the range (-1,1)
     # there is one row for each of the numk controls and one column for each of the numt timesteps
-    def initAmps(numk, numt, dt, initType):
+    def initAmps(self, numk, numt, dt, initType):
 
         if initType == "random":
             return 2 * np.random.random_sample((numk, numt)) - 1
@@ -113,7 +113,12 @@ class evolver:
 def main():
     #a = evolver()
     #a.evolve()
-    a = Individual(np.array([[1,2,3,4,5],[6,7,8,9,10]]), None)
+    p1 = Individual([], Params())
+    p1.amps = [1, 2, 3, 4, 5]
+    p2 = Individual([], Params())
+    p2.amps = [6, 7, 8, 9, 10]
+    parents = np.array([p1, p2])
+    a = Individual(parents, Params())
 
 
 if __name__ == '__main__':
