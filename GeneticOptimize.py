@@ -1,15 +1,63 @@
 import numpy as np
 import random as rand
 
+class params:
+    def __init__(self):
+        self.num_controls = 10
+        self.numt = 12
+        self.dt = 12
+        self.initType = "dfgsdf"
+
 class Individual:
-    def __init__(self, parents):
-        None
+    def __init__(self, parents, p):
+
+        self.mutation_prob = .15
+
+        if(len(parents) == 0):
+            # make new individual
+            self.amps = self.initAmps(p.num_controls, p.numt, p.dt, p.initType)
+        elif(len(parents) == 2):
+            #do crossover
+            print(parents)
+            print(parents[0].shape)
+            self.amps = np.zeros(parents[0].amps.shape[0], parents[0].amps.shape[1])
+            self.crossover(parents)
+            self.mutate()
+        else:
+            print("received unexpected number of parents...exiting")
+            exit(-1)
 
     def crossover(self, parents):
-        None
+        for k in range(len(parents[0].amps)):
+            cross_point = rand.randint(0, len(parents[0]))
+            for m in range(0, cross_point):
+                self.amps[k][m] = parents[0][k][m]
+            for n in range(cross_point, len(parents[0].amps)):
+                self.amps[k][n] = parents[1][k][n]
+        print(self.amps)
 
     def mutate(self):
         None
+
+    # returns an array of amplitudes in the range (-1,1)
+    # there is one row for each of the numk controls and one column for each of the numt timesteps
+    def initAmps(numk, numt, dt, initType):
+
+        if initType == "random":
+            return 2 * np.random.random_sample((numk, numt)) - 1
+        if initType == "linear":
+            myList = []
+            for _ in range(numk):
+                myList.append(np.linspace(-1 * (numt * dt), numt * dt, numt).tolist())
+                # myList.append(np.linspace(0, numt * dt, numt).tolist())
+            return np.array(myList) / (numt * dt)
+        if initType == "sinusoidal":
+            myList = []
+            for _ in range(numk):
+                myList.append(np.linspace(0, numt / 50, numt).tolist())
+            # for i in range(len(myList)):
+            # myList[i] = np.sin(myList[i])
+            return np.sin(myList)
 
 class evolver:
     def __init__(self):
@@ -18,12 +66,10 @@ class evolver:
         self.max_gens = 200
         self.stop = False
         self.tourney_size = 5
-        self.avg_fitness = 100000
+        self.avg_fitness = 0
         self.halloffame = []
         self.pop = []
         self.new_pop = []
-        self.max_mat_size = 28
-        self.model_location = "/home/brendan/Dropbox/stuffforlinux/python_projects/models/longlonglongmodel.h5"
 
     def eval_fitness(self):
         None
@@ -34,6 +80,8 @@ class evolver:
     def check_condition(self):
         print("in check_condition()")
         print("current generation is: " + str(self.curr_gen))
+        if(self.curr_gen > self.max_gens):
+            exit(-1)
 
     def next_gen(self):
         print("in next_gen()")
@@ -63,9 +111,10 @@ class evolver:
 
 
 def main():
-    a = evolver()
-    a.evolve()
+    #a = evolver()
+    #a.evolve()
+    a = Individual(np.array([[1,2,3,4,5],[6,7,8,9,10]]), None)
 
-main()
 
-
+if __name__ == '__main__':
+    main()
