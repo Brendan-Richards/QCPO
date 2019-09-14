@@ -6,7 +6,7 @@ class Params:
         self.num_controls = 10
         self.numt = 12
         self.dt = 12
-        self.initType = "dfgsdf"
+        self.initType = "random"
 
 class Individual:
     def __init__(self, parents, p):
@@ -18,9 +18,11 @@ class Individual:
             self.amps = self.initAmps(p.num_controls, p.numt, p.dt, p.initType)
         elif(len(parents) == 2):
             #do crossover
-            print(parents)
-            print(parents[0].shape)
-            self.amps = np.zeros(parents[0].amps.shape[0], parents[0].amps.shape[1])
+            #print(parents)
+            #print(parents[0].amps)
+            #print(len(parents[0].amps))
+            #print(len(parents[1].amps[0]))
+            self.amps = np.zeros((len(parents[0].amps), len(parents[1].amps[0])))
             self.crossover(parents)
             self.mutate()
         else:
@@ -28,12 +30,14 @@ class Individual:
             exit(-1)
 
     def crossover(self, parents):
+        #print("Length: " + str(parents[0].amps.shape))
         for k in range(len(parents[0].amps)):
-            cross_point = rand.randint(0, len(parents[0]))
+            cross_point = rand.randint(0, len(parents[0].amps[0]))
+            print("cross_point: " + str(cross_point))
             for m in range(0, cross_point):
-                self.amps[k][m] = parents[0][k][m]
-            for n in range(cross_point, len(parents[0].amps)):
-                self.amps[k][n] = parents[1][k][n]
+                self.amps[k, m] = parents[0].amps[k, m]
+            for n in range(cross_point, len(parents[0].amps[0])):
+                self.amps[k, n] = parents[1].amps[k, n]
         print(self.amps)
 
     def mutate(self):
@@ -48,13 +52,13 @@ class Individual:
         if initType == "linear":
             myList = []
             for _ in range(numk):
-                myList.append(np.linspace(-1 * (numt * dt), numt * dt, numt).tolist())
+                myList.append(np.linspace(-1 * (numt * dt), numt * dt, numt))
                 # myList.append(np.linspace(0, numt * dt, numt).tolist())
             return np.array(myList) / (numt * dt)
         if initType == "sinusoidal":
             myList = []
             for _ in range(numk):
-                myList.append(np.linspace(0, numt / 50, numt).tolist())
+                myList.append(np.linspace(0, numt / 50, numt))
             # for i in range(len(myList)):
             # myList[i] = np.sin(myList[i])
             return np.sin(myList)
@@ -114,9 +118,13 @@ def main():
     #a = evolver()
     #a.evolve()
     p1 = Individual([], Params())
-    p1.amps = [1, 2, 3, 4, 5]
+    p1.amps = np.array([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]])
+    print("parent 1 amps: ")
+    print(p1.amps)
     p2 = Individual([], Params())
-    p2.amps = [6, 7, 8, 9, 10]
+    p2.amps = np.array([[11, 12, 13, 14, 15], [16, 17, 18, 19, 20]])
+    print("parent 2 amps: ")
+    print(p2.amps)
     parents = np.array([p1, p2])
     a = Individual(parents, Params())
 
