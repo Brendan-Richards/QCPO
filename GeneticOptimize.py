@@ -13,8 +13,9 @@ class Params:
 
         #quantum info parameters
         self.numt = 100
-        self.num_qubits = 2
-        self.H0 = 0 * np.kron(self.I, self.I)
+        self.num_qubits = 1
+        self.H0 = 0*self.I
+        #self.H0 = 0 * np.kron(self.I, self.I)
         #self.H0 = 0 * np.kron(np.kron(I, I), I)
         self.tTotal = 1
         #self.numt = 1000
@@ -24,10 +25,11 @@ class Params:
         self.initType = "linear"
         self.parallel = False
         self.tolerance = 1e-4
-        self.target = np.kron(self.Sx, self.Sx)
+        #self.target = np.kron(self.Sx, self.Sx)
+        self.target = self.Sx
 
-        #Geneticc algorithm parameters
-        self.pop_size = 100
+        #Genetic algorithm parameters
+        self.pop_size = 20
         self.curr_gen = 1
         self.max_gens = 200000000
         self.stop = False
@@ -36,7 +38,7 @@ class Params:
         self.halloffame = []
         self.pop = []
         self.new_pop = []
-        self.mutation_prob = 0.01
+        self.mutation_prob = 0.1
         self.solution_guy = None
 
     # n is the number of qubits to make controls for
@@ -155,7 +157,7 @@ class Individual:
                 #print("prob: " + str(prob))
                 if(mutation_prob > prob):
                     #print("mutating...")
-                    self.amps[k, m] = self.amps[k, m]*rand.random()
+                    self.amps[k, m] = self.amps[k, m]*rand.random()*2
 
 
 
