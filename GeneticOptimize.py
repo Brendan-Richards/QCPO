@@ -1,8 +1,7 @@
-import numpy as np
-import random as rand
 from itertools import combinations
 from scipy.linalg import expm
 import matplotlib.pyplot as plt
+from NetworkStuff import *
 
 class Params:
     def __init__(self):
@@ -10,9 +9,11 @@ class Params:
         self.Sx = np.array([[0, 1], [1, 0]])
         self.Sy = np.array([[0, -1j], [1j, 0]])
         self.Sz = np.array([[1, 0], [0, -1]])
+        self.hadamard = np.array([[1 / (np.sqrt(2)), 1 / (np.sqrt(2))],
+                     [1 / (np.sqrt(2)), -1 / (np.sqrt(2))]])
 
         #quantum info parameters
-        self.numt = 100
+        self.numt = 1000
         self.num_qubits = 1
         self.H0 = 0*self.I
         #self.H0 = 0 * np.kron(self.I, self.I)
@@ -22,24 +23,43 @@ class Params:
         self.hks, self.labels = self.get_hks(self.num_qubits)
         self.num_controls = len(self.hks)
         self.dt = self.tTotal/self.numt
-        self.initType = "linear"
+        self.initType = "sinusoidal"
         self.parallel = False
         self.tolerance = 1e-4
         #self.target = np.kron(self.Sx, self.Sx)
-        self.target = self.Sx
+        self.target = self.hadamard
 
         #Genetic algorithm parameters
-        self.pop_size = 20
+        self.pop_size = 30
         self.curr_gen = 1
         self.max_gens = 200000000
         self.stop = False
-        self.tourney_size = 4
+        self.tourney_size = 5
         self.avg_fitness = 0
         self.halloffame = []
         self.pop = []
         self.new_pop = []
-        self.mutation_prob = 0.1
+        self.mutation_prob = 0.15
         self.solution_guy = None
+
+        #neural network parameters
+        self.maxnum = 28
+        #linux paths
+        self.data_location = "/home/brendan/Dropbox/stuffforlinux/python_projects/training_data"
+        self.predict_input_location = "/home/brendan/Dropbox/stuffforlinux/python_projects/clusterexpansion_AlGaN"
+        #self.predict_input_location = "/home/brendan/Dropbox/stuffforlinux/python_projects/prediction_data"
+        #self.predict_input_location = "/home/brendan/Dropbox/stuffforlinux/python_projects/test_prediction"
+        self.predict_output_location = "/home/brendan/Dropbox/stuffforlinux/python_projects"
+        """
+        #windows paths
+        self.data_location = "C:\\Users\\Brendan\\Dropbox\\stuffforlinux\\python_projects\\training_data"
+        self.predict_input_location = "C:\\Users\\Brendan\\Dropbox\\stuffforlinux\\python_projects\\prediction_data"
+        self.predict_output_location = "C:\\Users\\Brendan\\Dropbox\\stuffforlinux\\python_projects"
+        """
+        self.num_epochs = 1600
+        self.num_steps_per_epoch = 50
+        self.my_batch_size = 50
+        self.learning_rate = .0001
 
     # n is the number of qubits to make controls for
     def get_hks(self, n):
@@ -125,6 +145,7 @@ class Individual:
     def __init__(self, parents, p):
 
         self.fitness = 0.0
+        self.mats = []
 
         if(len(parents) == 0):
             # make new individual
@@ -132,7 +153,7 @@ class Individual:
         elif(len(parents) == 2):
             #do crossover
             self.amps = np.zeros((len(parents[0].amps), len(parents[1].amps[0])))
-            self.crossover(parents)
+            self.avg_crossover(parents)
             self.mutate(p.mutation_prob)
 
         else:
@@ -149,6 +170,11 @@ class Individual:
             for n in range(cross_point, len(parents[0].amps[0])):
                 self.amps[k, n] = parents[1].amps[k, n]
         #print(self.amps)
+
+    def avg_crossover(self, parents):
+        #print("Length: " + str(parents[0].amps.shape))
+        for k in range(len(parents[0].amps)): # loop through controls
+            self.amps[k] = ((np.array(parents[0].amps[k]) + np.array(parents[1].amps[k])) / 2)
 
     def mutate(self, mutation_prob):
         for k in range(len(self.amps)):
@@ -226,14 +252,14 @@ class evolver:
             self.p.pop.append(Individual([], self.p))
 
     def check_condition(self):
-        print("in check_condition()")
+        #print("in check_condition()")
         print("current generation is: " + str(self.p.curr_gen))
         if(self.p.curr_gen > self.p.max_gens):
             print("reached max generation, stopping")
             exit(-1)
 
     def next_gen(self):
-        print("in next_gen()")
+        #print("in next_gen()")
         self.p.new_pop = []
         for i in range(self.p.pop_size):
             self.p.new_pop.append(Individual(self.select_parents(), self.p))
@@ -274,22 +300,26 @@ class evolver:
 def main():
     p = Params()
 
-    a = evolver(p)
-    a.evolve()
+    #a = evolver(p)
+    #a.evolve()
+
+    test()
     #test_crossover()
 
 
 def test_crossover():
     p1 = Individual([], Params())
-    p1.amps = np.array([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]])
+    p1.amps = np.array([[1, 1, 1, 1, 1], [5, 5, 5, 5, 5]])
     print("parent 1 amps: ")
     print(p1.amps)
     p2 = Individual([], Params())
-    p2.amps = np.array([[11, 12, 13, 14, 15], [16, 17, 18, 19, 20]])
+    p2.amps = np.array([[10, 10, 10, 10, 10], [16, 16, 16, 16, 16]])
     print("parent 2 amps: ")
     print(p2.amps)
     parents = np.array([p1, p2])
     a = Individual(parents, Params())
+    print("child amps:")
+    print(a.amps)
 
 
 if __name__ == '__main__':
