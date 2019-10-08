@@ -1,6 +1,4 @@
 from itertools import combinations
-from scipy.linalg import expm
-import matplotlib.pyplot as plt
 from NetworkStuff import *
 
 class Params:
@@ -22,12 +20,17 @@ class Params:
         #self.numt = 1000
         self.hks, self.labels = self.get_hks(self.num_qubits)
         self.num_controls = len(self.hks)
+        #self.num_controls = 3
         self.dt = self.tTotal/self.numt
         self.initType = "sinusoidal"
         self.parallel = False
         self.tolerance = 1e-4
         #self.target = np.kron(self.Sx, self.Sx)
         self.target = self.hadamard
+        self.fourier_amps = [1, 5.4, 6.2, .3, 2.2]
+        self.fourier_freqs = [1, 2, 3, 4, 5]
+        self.fourier_max_amp = 2
+        self.fourier_max_freq = 10
 
         #Genetic algorithm parameters
         self.pop_size = 30
@@ -56,10 +59,14 @@ class Params:
         self.predict_input_location = "C:\\Users\\Brendan\\Dropbox\\stuffforlinux\\python_projects\\prediction_data"
         self.predict_output_location = "C:\\Users\\Brendan\\Dropbox\\stuffforlinux\\python_projects"
         """
-        self.num_epochs = 1600
+        self.num_epochs = 16
         self.num_steps_per_epoch = 50
         self.my_batch_size = 50
         self.learning_rate = .0001
+        self.net_train_size = 1000
+        self.model_fname = "./my_model.h5"
+        self.model = tf.keras.models.load_model(self.model_fname)
+
 
     # n is the number of qubits to make controls for
     def get_hks(self, n):
@@ -205,7 +212,7 @@ class Individual:
                 myList.append(np.linspace(0, numt / 50, numt))
             # for i in range(len(myList)):
             # myList[i] = np.sin(myList[i])
-            return np.sin(myList)
+            return rand.random()*2*np.sin([rand.random()*10*x + rand.random()*6 for x in myList])
 
 #########################################################################################
 class evolver:
@@ -213,30 +220,40 @@ class evolver:
         self.p = params
 
     def eval_fitness(self):
-        total_fitness = 0
-        for r in range(len(self.p.pop)):
-            U = []
-            x = []
-            for i in range(self.p.numt):  # loop over time steps
-                mat = self.p.H0  # matrix in the exponential
-                for k in range(self.p.num_controls):  # loop over controls and add to hamiltonian
-                    mat = np.add(mat, self.p.pop[r].amps[k][i] * self.p.hks[k])
+        temp = np.array([x.amps.flatten() for x in self.p.pop])
 
-                mat = -1 * 1j * self.p.dt * mat
-                #print(mat)
-                U.append(expm(mat))  # do the matrix exponential
-                if i == 0:
-                    x.append(U[i])
-                else:
-                    x.append(np.matmul(U[i], x[i - 1]))
-            self.p.pop[r].fitness = self.fidelity(self.p.target, x)
-            total_fitness += self.p.pop[r].fitness
-            if(self.p.pop[r].fitness > 1-self.p.tolerance):
-                print("solution found")
-                self.p.stop = True
-                self.p.solution_guy = self.p.pop[r]
-        self.average_fitness = total_fitness/len(self.p.pop)
+        fitness_array = self.p.model.predict(temp).flatten()
+        for r in range(len(self.p.pop)):
+            self.p.pop[r].fitness = fitness_array[r]
+            if (self.p.pop[r].fitness > 1 - self.p.tolerance and self.p.pop[r].fitness < 1 + self.p.tolerance):
+                print("possible solution found")
+                self.eval_fitness_final(self.p.pop[r])
+        self.average_fitness = np.mean(fitness_array)
         print("average population fitness: " + str(self.average_fitness))
+
+    def eval_fitness_final(self, guy):
+        print("checking fitness...")
+        U = []
+        x = []
+        for i in range(self.p.numt):  # loop over time steps
+            mat = self.p.H0  # matrix in the exponential
+            for k in range(self.p.num_controls):  # loop over controls and add to hamiltonian
+                mat = np.add(mat, guy.amps[k][i] * self.p.hks[k])
+
+            mat = -1 * 1j * self.p.dt * mat
+            #print(mat)
+            U.append(expm(mat))  # do the matrix exponential
+            if i == 0:
+                x.append(U[i])
+            else:
+                x.append(np.matmul(U[i], x[i - 1]))
+        guy.fitness = self.fidelity(self.p.target, x)
+        if(guy.fitness > 1-self.p.tolerance):
+            print("solution found")
+            self.p.stop = True
+            self.p.solution_guy = guy
+        print("solution fitness: " + str(guy.fitness))
+
 
     def fidelity(self, tgt, X):
         return self.HS(tgt, X[-1]) * self.HS(X[-1], tgt)
@@ -270,9 +287,20 @@ class evolver:
         participants = []
         for i in range(self.p.tourney_size):
             participants.append(self.p.pop[rand.randint(0, len(self.p.pop)-1)])
-        participants.sort(key=lambda x: x.fitness, reverse=True)
 
-        return participants[0:2]
+        winners = []
+
+        winners.append(self.find_nearest(participants, 1-self.p.tolerance))
+        participants.remove(winners[0])
+        winners.append(self.find_nearest(participants, 1 - self.p.tolerance))
+
+        return winners
+
+    def find_nearest(self, a, value):
+        fit_vals = [x.fitness for x in a]
+        array = np.asarray(fit_vals)
+        idx = (np.abs(array - value)).argmin()
+        return a[idx]
 
     def output_results(self):
         winner = self.p.solution_guy
@@ -282,9 +310,9 @@ class evolver:
             plt.title("Control Hamiltonian: " + self.p.labels[k])
             plt.xlabel("time")
             plt.ylabel("Amplitude")
-            plt.savefig("control_" + self.p.labels[k] + ".pdf")
+            plt.savefig("genetic_results/control_" + self.p.labels[k] + ".pdf")
             plt.clf()
-            # plt.show()
+            #plt.show()
 
     def evolve(self):
         self.init_pop()
@@ -300,10 +328,10 @@ class evolver:
 def main():
     p = Params()
 
-    #a = evolver(p)
-    #a.evolve()
+    a = evolver(p)
+    a.evolve()
 
-    test()
+    #test_net(p)
     #test_crossover()
 
 
