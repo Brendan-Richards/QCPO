@@ -100,6 +100,6 @@ def make_model(p):
               steps_per_epoch=p.num_steps_per_epoch)
     return model
 
-def test_net(p):
+def create_new_model(p):
     m = make_model(p)
-    m.save("my_model.h5")
+    m.save("neural_net_models/1qubit_hadamard.h5")

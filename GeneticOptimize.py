@@ -33,11 +33,11 @@ class Params:
         self.fourier_max_freq = 10
 
         #Genetic algorithm parameters
-        self.pop_size = 30
+        self.pop_size = 1000
         self.curr_gen = 1
         self.max_gens = 200000000
         self.stop = False
-        self.tourney_size = 5
+        self.tourney_size = 10
         self.avg_fitness = 0
         self.halloffame = []
         self.pop = []
@@ -46,7 +46,6 @@ class Params:
         self.solution_guy = None
 
         #neural network parameters
-        self.maxnum = 28
         #linux paths
         self.data_location = "/home/brendan/Dropbox/stuffforlinux/python_projects/training_data"
         self.predict_input_location = "/home/brendan/Dropbox/stuffforlinux/python_projects/clusterexpansion_AlGaN"
@@ -59,12 +58,12 @@ class Params:
         self.predict_input_location = "C:\\Users\\Brendan\\Dropbox\\stuffforlinux\\python_projects\\prediction_data"
         self.predict_output_location = "C:\\Users\\Brendan\\Dropbox\\stuffforlinux\\python_projects"
         """
-        self.num_epochs = 16
+        self.num_epochs = 1600
         self.num_steps_per_epoch = 50
         self.my_batch_size = 50
         self.learning_rate = .0001
-        self.net_train_size = 1000
-        self.model_fname = "./my_model.h5"
+        self.net_train_size = 20000
+        self.model_fname = "./neural_net_models/1qubit_hadamard.h5"
         self.model = tf.keras.models.load_model(self.model_fname)
 
 
@@ -331,7 +330,7 @@ def main():
     a = evolver(p)
     a.evolve()
 
-    #test_net(p)
+    #create_new_model(p)
     #test_crossover()
 
 
