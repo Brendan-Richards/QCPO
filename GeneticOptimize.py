@@ -33,6 +33,7 @@ class Params:
         self.fourier_max_freq = 100
         self.fourier_max_phase = 2*np.pi
         self.fourier_max_terms = 10
+        self.num_fourier_terms = 4
 
         #Genetic algorithm parameters
         self.pop_size = 1000
@@ -164,16 +165,17 @@ class Individual:
             self.amps = self.initAmps(p)
         elif(len(parents) == 2):
             #do crossover
-            self.amps = np.zeros((len(parents[0].amps), len(parents[1].amps[0])))
-            self.avg_crossover(parents)
-            self.mutate(p.mutation_prob)
+            #self.amps = np.zeros((len(parents[0].amps), len(parents[1].amps[0])))
+            self.avg_crossover(parents, p)
+            self.mutate(p)
 
         else:
             print("received unexpected number of parents...exiting")
             exit(-1)
 
     def init_fourier(self, p):
-        self.num_fourier_terms = rand.randint(0, p.fourier_max_terms)
+        #self.num_fourier_terms = rand.randint(0, p.fourier_max_terms)
+        self.num_fourier_terms = p.num_fourier_terms
         for j in range(p.num_controls):
             t1 = []
             t2 = []
@@ -203,19 +205,44 @@ class Individual:
                 self.amps[k, n] = parents[1].amps[k, n]
         #print(self.amps)
 
-    def avg_crossover(self, parents):
-        #print("Length: " + str(parents[0].amps.shape))
-        for k in range(len(parents[0].amps)): # loop through controls
-            self.amps[k] = ((np.array(parents[0].amps[k]) + np.array(parents[1].amps[k])) / 2)
+    def avg_crossover(self, parents, p):
+        for k in range(len(parents[0].fourier_amps)): # loop through controls
+            t1 = []
+            t2 = []
+            t3 = []
+            for i in range(len(parents[0].fourier_amps[0])): #loop through fourier amplitudes
+                t1.append((parents[0].fourier_amps[k][i]+parents[1].fourier_amps[k][i])/2.0)
+                t2.append((parents[0].fourier_freqs[k][i] + parents[1].fourier_freqs[k][i]) / 2.0)
+                t3.append((parents[0].fourier_phases[k][i] + parents[1].fourier_phases[k][i]) / 2.0)
+            self.fourier_amps.append(t1)
+            self.fourier_freqs.append(t2)
+            self.fourier_phases.append(t3)
+        self.amps = self.initAmps(p)
 
-    def mutate(self, mutation_prob):
-        for k in range(len(self.amps)):
-            for m in range(0, len(self.amps[0])):
-                prob = rand.random()
+    # def mutate(self, mutation_prob):
+    #     for k in range(len(self.amps)):
+    #         for m in range(0, len(self.amps[0])):
+    #             prob = rand.random()
+    #             #print("prob: " + str(prob))
+    #             if(mutation_prob > prob):
+    #                 #print("mutating...")
+    #                 self.amps[k, m] = self.amps[k, m]*rand.random()*2
+
+    def mutate(self, p):
+        prob = rand.random()
                 #print("prob: " + str(prob))
-                if(mutation_prob > prob):
-                    #print("mutating...")
-                    self.amps[k, m] = self.amps[k, m]*rand.random()*2
+        if(p.mutation_prob > prob):
+            mut_type = 0
+            #mut_type = rand.randint(0, 2)
+            control = rand.randint(0, p.num_controls-1)
+            if(mut_type == 0):
+                b = rand.randint(0, len(self.fourier_amps[0]) - 1)
+                self.fourier_amps[control][b] = rand.random()*p.fourier_max_amp
+            elif(mut_type == 1):
+                self.fourier_freqs[control][rand.randint(0, len(self.fourier_freqs[0])-1)] = rand.random() * p.fourier_max_freq
+            elif(mut_type == 2):
+                self.fourier_phases[control][rand.randint(0, len(self.fourier_phases[0])-1)] = rand.random() * p.fourier_max_phase
+            self.initAmps(p)
 
 
     # returns an array of amplitudes in the range (-1,1)
