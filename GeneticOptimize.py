@@ -36,16 +36,16 @@ class Params:
         self.num_fourier_terms = 4
 
         #Genetic algorithm parameters
-        self.pop_size = 1000
+        self.pop_size = 30
         self.curr_gen = 1
         self.max_gens = 200000000
         self.stop = False
-        self.tourney_size = 10
+        self.tourney_size = 5
         self.avg_fitness = 0
         self.halloffame = []
         self.pop = []
         self.new_pop = []
-        self.mutation_prob = 0.15
+        self.mutation_prob = 0.1
         self.solution_guy = None
 
         #neural network parameters
@@ -274,16 +274,42 @@ class evolver:
         self.p = params
 
     def eval_fitness(self):
-        temp = np.array([x.amps.flatten() for x in self.p.pop])
-
-        fitness_array = self.p.model.predict(temp).flatten()
+        total_fitness = 0
         for r in range(len(self.p.pop)):
-            self.p.pop[r].fitness = fitness_array[r]
-            if (self.p.pop[r].fitness > 1 - self.p.tolerance and self.p.pop[r].fitness < 1 + self.p.tolerance):
-                print("possible solution found")
-                self.eval_fitness_final(self.p.pop[r])
-        self.average_fitness = np.mean(fitness_array)
+            U = []
+            x = []
+            for i in range(self.p.numt):  # loop over time steps
+                mat = self.p.H0  # matrix in the exponential
+                for k in range(self.p.num_controls):  # loop over controls and add to hamiltonian
+                    mat = np.add(mat, self.p.pop[r].amps[k][i] * self.p.hks[k])
+
+                mat = -1 * 1j * self.p.dt * mat
+                #print(mat)
+                U.append(expm(mat))  # do the matrix exponential
+                if i == 0:
+                    x.append(U[i])
+                else:
+                    x.append(np.matmul(U[i], x[i - 1]))
+            self.p.pop[r].fitness = self.fidelity(self.p.target, x)
+            total_fitness += self.p.pop[r].fitness
+            if(self.p.pop[r].fitness > 1-self.p.tolerance):
+                print("solution found")
+                self.p.stop = True
+                self.p.solution_guy = self.p.pop[r]
+        self.average_fitness = total_fitness/len(self.p.pop)
         print("average population fitness: " + str(self.average_fitness))
+
+    # def eval_fitness(self):
+    #     temp = np.array([x.amps.flatten() for x in self.p.pop])
+    #
+    #     fitness_array = self.p.model.predict(temp).flatten()
+    #     for r in range(len(self.p.pop)):
+    #         self.p.pop[r].fitness = fitness_array[r]
+    #         if (self.p.pop[r].fitness > 1 - self.p.tolerance and self.p.pop[r].fitness < 1 + self.p.tolerance):
+    #             print("possible solution found")
+    #             self.eval_fitness_final(self.p.pop[r])
+    #     self.average_fitness = np.mean(fitness_array)
+    #     print("average population fitness: " + str(self.average_fitness))
 
     def eval_fitness_final(self, guy):
         print("checking fitness...")
@@ -341,14 +367,22 @@ class evolver:
         participants = []
         for i in range(self.p.tourney_size):
             participants.append(self.p.pop[rand.randint(0, len(self.p.pop)-1)])
+        participants.sort(key=lambda x: x.fitness, reverse=True)
 
-        winners = []
+        return participants[0:2]
 
-        winners.append(self.find_nearest(participants, 1-self.p.tolerance))
-        participants.remove(winners[0])
-        winners.append(self.find_nearest(participants, 1 - self.p.tolerance))
-
-        return winners
+    # def select_parents(self):
+    #     participants = []
+    #     for i in range(self.p.tourney_size):
+    #         participants.append(self.p.pop[rand.randint(0, len(self.p.pop)-1)])
+    #
+    #     winners = []
+    #
+    #     winners.append(self.find_nearest(participants, 1-self.p.tolerance))
+    #     participants.remove(winners[0])
+    #     winners.append(self.find_nearest(participants, 1 - self.p.tolerance))
+    #
+    #     return winners
 
     def find_nearest(self, a, value):
         fit_vals = [x.fitness for x in a]
