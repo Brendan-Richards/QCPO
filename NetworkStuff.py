@@ -4,20 +4,7 @@ from scipy.linalg import expm
 import matplotlib.pyplot as plt
 import random as rand
 
-def get_network_input(p):
-    my_folders = [x[0] for x in os.walk(p.data_location)][1:]
-    input_list = []
-    label_list = []
-    for folder in my_folders:
-        mat, energy, _ = get_adjacency_mat_from_file(folder)
-        mat = mat.flatten()
-        n = (p.maxnum**2-mat.size)
-        #pad zeroes to make all input have the same dimension
-        mat = np.pad(mat, (0, n), mode='constant')
-        #print(mat.shape)
-        input_list.append(mat)
-        label_list.append(energy)
-    return np.array(input_list), np.array(label_list)
+
 
 def f(fourier_amps, fourier_freqs, x):
     num = 0

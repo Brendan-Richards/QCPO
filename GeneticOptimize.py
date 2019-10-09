@@ -30,7 +30,9 @@ class Params:
         self.fourier_amps = [1, 5.4, 6.2, .3, 2.2]
         self.fourier_freqs = [1, 2, 3, 4, 5]
         self.fourier_max_amp = 2
-        self.fourier_max_freq = 10
+        self.fourier_max_freq = 100
+        self.fourier_max_phase = 2*np.pi
+        self.fourier_max_terms = 10
 
         #Genetic algorithm parameters
         self.pop_size = 1000
@@ -152,10 +154,14 @@ class Individual:
 
         self.fitness = 0.0
         self.mats = []
+        self.fourier_amps = []
+        self.fourier_freqs = []
+        self.fourier_phases = []
 
         if(len(parents) == 0):
             # make new individual
-            self.amps = self.initAmps(p.num_controls, p.numt, p.dt, p.initType)
+            self.init_fourier(p)
+            self.amps = self.initAmps(p)
         elif(len(parents) == 2):
             #do crossover
             self.amps = np.zeros((len(parents[0].amps), len(parents[1].amps[0])))
@@ -165,6 +171,26 @@ class Individual:
         else:
             print("received unexpected number of parents...exiting")
             exit(-1)
+
+    def init_fourier(self, p):
+        self.num_fourier_terms = rand.randint(0, p.fourier_max_terms)
+        for j in range(p.num_controls):
+            t1 = []
+            t2 = []
+            t3 = []
+            for i in range(self.num_fourier_terms):
+                t1.append(rand.random() * p.fourier_max_amp)
+                t2.append(rand.random() * p.fourier_max_freq)
+                t3.append(rand.random() * p.fourier_max_phase)
+            self.fourier_amps.append(t1)
+            self.fourier_freqs.append(t2)
+            self.fourier_phases.append(t3)
+
+    def fourier(self, x, k):
+        val = np.zeros(len(x))
+        for i in range(len(self.fourier_amps[k])):
+            val += (self.fourier_amps[k][i]*np.sin(self.fourier_freqs[k][i]*x + self.fourier_phases[k][i]))
+        return val
 
     def crossover(self, parents):
         #print("Length: " + str(parents[0].amps.shape))
@@ -192,26 +218,28 @@ class Individual:
                     self.amps[k, m] = self.amps[k, m]*rand.random()*2
 
 
-
     # returns an array of amplitudes in the range (-1,1)
     # there is one row for each of the numk controls and one column for each of the numt timesteps
-    def initAmps(self, numk, numt, dt, initType):
+    def initAmps(self, p):
 
-        if initType == "random":
-            return 2 * np.random.random_sample((numk, numt)) - 1
-        if initType == "linear":
+        if p.initType == "random":
+            return 2 * np.random.random_sample((p.num_controls, p.numt)) - 1
+        if p.initType == "linear":
             myList = []
-            for _ in range(numk):
-                myList.append(np.linspace(-1 * (numt * dt), numt * dt, numt))
+            for _ in range(p.num_controls):
+                myList.append(np.linspace(-1 * (p.numt * p.dt), p.numt * p.dt, p.numt))
                 # myList.append(np.linspace(0, numt * dt, numt).tolist())
-            return np.array(myList) / (numt * dt)
-        if initType == "sinusoidal":
+            return np.array(myList) / (p.numt * p.dt)
+        if p.initType == "sinusoidal":
             myList = []
-            for _ in range(numk):
-                myList.append(np.linspace(0, numt / 50, numt))
-            # for i in range(len(myList)):
-            # myList[i] = np.sin(myList[i])
-            return rand.random()*2*np.sin([rand.random()*10*x + rand.random()*6 for x in myList])
+            temp = []
+            for k in range(p.num_controls):
+                myList.append(np.linspace(0, p.tTotal, p.numt))
+                temp.append(self.fourier(myList[k], k))
+            #for x in temp:
+             #   plt.plot(np.linspace(0, p.tTotal, p.numt), x)
+             #   plt.show()
+            return np.array(temp)
 
 #########################################################################################
 class evolver:
