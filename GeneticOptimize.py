@@ -28,19 +28,19 @@ class Params:
         #self.target = np.kron(self.Sx, self.Sx)
         self.target = self.hadamard
         self.fourier_amps = [1, 5.4, 6.2, .3, 2.2]
-        self.fourier_freqs = [1, 2, 3, 4, 5]
+        self.fourier_max_freq = 10
+        self.fourier_freqs = np.linspace(1, self.fourier_max_freq, num=self.fourier_max_freq)
         self.fourier_max_amp = 2
-        self.fourier_max_freq = 100
         self.fourier_max_phase = 2*np.pi
         self.fourier_max_terms = 10
-        self.num_fourier_terms = 4
+        self.num_fourier_terms = len(self.fourier_freqs)
 
         #Genetic algorithm parameters
         self.pop_size = 30
         self.curr_gen = 1
         self.max_gens = 200000000
         self.stop = False
-        self.tourney_size = 5
+        self.tourney_size = 4
         self.avg_fitness = 0
         self.halloffame = []
         self.pop = []
@@ -65,7 +65,7 @@ class Params:
         self.num_steps_per_epoch = 50
         self.my_batch_size = 50
         self.learning_rate = .0001
-        self.net_train_size = 20000
+        self.net_train_size = 50000
         self.model_fname = "./neural_net_models/1qubit_hadamard.h5"
         self.model = tf.keras.models.load_model(self.model_fname)
 
@@ -157,7 +157,6 @@ class Individual:
         self.mats = []
         self.fourier_amps = []
         self.fourier_freqs = []
-        self.fourier_phases = []
 
         if(len(parents) == 0):
             # make new individual
@@ -176,22 +175,18 @@ class Individual:
     def init_fourier(self, p):
         #self.num_fourier_terms = rand.randint(0, p.fourier_max_terms)
         self.num_fourier_terms = p.num_fourier_terms
+        self.fourier_freqs = p.fourier_freqs
         for j in range(p.num_controls):
             t1 = []
-            t2 = []
-            t3 = []
             for i in range(self.num_fourier_terms):
                 t1.append(rand.random() * p.fourier_max_amp)
-                t2.append(rand.random() * p.fourier_max_freq)
-                t3.append(rand.random() * p.fourier_max_phase)
             self.fourier_amps.append(t1)
-            self.fourier_freqs.append(t2)
-            self.fourier_phases.append(t3)
+
 
     def fourier(self, x, k):
         val = np.zeros(len(x))
         for i in range(len(self.fourier_amps[k])):
-            val += (self.fourier_amps[k][i]*np.sin(self.fourier_freqs[k][i]*x + self.fourier_phases[k][i]))
+            val += (self.fourier_amps[k][i]*np.sin(self.fourier_freqs[i]*x))
         return val
 
     def crossover(self, parents):
@@ -206,17 +201,12 @@ class Individual:
         #print(self.amps)
 
     def avg_crossover(self, parents, p):
+        self.fourier_freqs = parents[0].fourier_freqs
         for k in range(len(parents[0].fourier_amps)): # loop through controls
             t1 = []
-            t2 = []
-            t3 = []
             for i in range(len(parents[0].fourier_amps[0])): #loop through fourier amplitudes
                 t1.append((parents[0].fourier_amps[k][i]+parents[1].fourier_amps[k][i])/2.0)
-                t2.append((parents[0].fourier_freqs[k][i] + parents[1].fourier_freqs[k][i]) / 2.0)
-                t3.append((parents[0].fourier_phases[k][i] + parents[1].fourier_phases[k][i]) / 2.0)
             self.fourier_amps.append(t1)
-            self.fourier_freqs.append(t2)
-            self.fourier_phases.append(t3)
         self.amps = self.initAmps(p)
 
     # def mutate(self, mutation_prob):
@@ -229,20 +219,12 @@ class Individual:
     #                 self.amps[k, m] = self.amps[k, m]*rand.random()*2
 
     def mutate(self, p):
-        prob = rand.random()
+        num = rand.random()
                 #print("prob: " + str(prob))
-        if(p.mutation_prob > prob):
-            mut_type = 0
-            #mut_type = rand.randint(0, 2)
+        if(p.mutation_prob < num):
             control = rand.randint(0, p.num_controls-1)
-            if(mut_type == 0):
-                b = rand.randint(0, len(self.fourier_amps[0]) - 1)
-                self.fourier_amps[control][b] = rand.random()*p.fourier_max_amp
-            elif(mut_type == 1):
-                self.fourier_freqs[control][rand.randint(0, len(self.fourier_freqs[0])-1)] = rand.random() * p.fourier_max_freq
-            elif(mut_type == 2):
-                self.fourier_phases[control][rand.randint(0, len(self.fourier_phases[0])-1)] = rand.random() * p.fourier_max_phase
-            self.initAmps(p)
+            b = rand.randint(0, len(self.fourier_amps[0]) - 1)
+            self.fourier_amps[control][b] = rand.random()*p.fourier_max_amp
 
 
     # returns an array of amplitudes in the range (-1,1)
@@ -365,11 +347,17 @@ class evolver:
 
     def select_parents(self):
         participants = []
+        winners = []
         for i in range(self.p.tourney_size):
             participants.append(self.p.pop[rand.randint(0, len(self.p.pop)-1)])
-        participants.sort(key=lambda x: x.fitness, reverse=True)
+        #participants.sort(key=lambda x: x.fitness, reverse=True)
+        index = self.find_nearest(participants, 1.0)
+        winners.append(participants[index])
+        participants.remove(participants[index])
+        index = self.find_nearest(participants, 1.0)
+        winners.append(participants[index])
 
-        return participants[0:2]
+        return winners
 
     # def select_parents(self):
     #     participants = []
@@ -388,7 +376,8 @@ class evolver:
         fit_vals = [x.fitness for x in a]
         array = np.asarray(fit_vals)
         idx = (np.abs(array - value)).argmin()
-        return a[idx]
+        #return a[idx]
+        return idx
 
     def output_results(self):
         winner = self.p.solution_guy

@@ -25,11 +25,9 @@ def make_training_data(p):
         amps = []
         for j in range(p.num_controls):
             fourier_amps = []
-            fourier_freqs = []
-            for r in range(len(p.fourier_amps)):
+            for r in range(len(p.fourier_freqs)):
                 fourier_amps.append(rand.random()*p.fourier_max_amp)
-                fourier_freqs.append(rand.random()*p.fourier_max_freq)
-            amps.append([f(fourier_amps, fourier_freqs, x) for x in times])
+            amps.append([f(fourier_amps, p.fourier_freqs, x) for x in times])
         inputs.append(amps)
         print("made amplitudes: " + str(i))
 
